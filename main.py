@@ -16,7 +16,11 @@ CURRENCY_IDS = {
     "CNY": 462
 }
 
-# Разбиение на календарные годы (с учётом високосных)
+# Определение високосных лет
+def is_leap_year(year):
+    return (year % 4 == 0 and year % 100 != 0) or (year % 400 == 0)
+
+# Разбиение на календарные годы, включая 31 декабря в високосные годы
 def split_dates(start, end):
     dates = []
     current = start
@@ -25,6 +29,11 @@ def split_dates(start, end):
         if next_end > end:
             next_end = end
         dates.append((current, next_end))
+
+        # Добавляем 31 декабря отдельно, если год високосный и не включен в диапазон
+        if is_leap_year(current.year) and next_end.month == 12 and next_end.day == 30:
+            dates.append((next_end + timedelta(days=1), next_end + timedelta(days=1)))
+
         current = next_end + timedelta(days=1)
     return dates
 
