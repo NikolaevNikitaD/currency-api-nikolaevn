@@ -2,7 +2,7 @@ import os
 os.system("pip install python-dateutil")
 
 from flask import Flask, request, jsonify
-from datetime import datetime, timedelta
+from datetime import datetime
 import requests
 
 app = Flask(__name__)
@@ -23,9 +23,10 @@ def is_leap_year(year):
 def rates():
     start_str = request.args.get("start_date")
     end_str = request.args.get("end_date")
+    currencies_str = request.args.get("currencies")
 
-    if not start_str or not end_str:
-        return jsonify(error="Нужны параметры start_date и end_date в формате YYYY-MM-DD"), 400
+    if not start_str or not end_str or not currencies_str:
+        return jsonify(error="Нужны параметры start_date, end_date и currencies (например, currencies=USD,EUR)"), 400
 
     try:
         start = datetime.strptime(start_str, "%Y-%m-%d")
@@ -35,9 +36,14 @@ def rates():
     except Exception as e:
         return jsonify(error=f"Неверные даты: {str(e)}"), 400
 
+    currencies = currencies_str.split(",")
     result_rows = []
 
-    for name, cur_id in CURRENCY_IDS.items():
+    for name in currencies:
+        cur_id = CURRENCY_IDS.get(name.strip())
+        if not cur_id:
+            return jsonify(error=f"Неизвестная валюта: {name}"), 400
+
         for year in range(start.year, end.year + 1):
             year_start = f"{year}-01-01"
             year_end = f"{year}-12-31"
@@ -78,5 +84,6 @@ def rates():
                     return jsonify(error=f"Ошибка запроса к НБРБ для {name} ({leap_date}): статус {resp.status_code}"), 502
 
     return jsonify(result_rows)
+
 
 
