@@ -10,9 +10,9 @@ app = Flask(__name__)
 
 # ID валют НБРБ
 CURRENCY_IDS = {
-    "USD": 456,
-    "EUR": 431,
-    "RUB": 451,
+    "USD": 431,
+    "EUR": 451,
+    "RUB": 456,
     "CNY": 462
 }
 
