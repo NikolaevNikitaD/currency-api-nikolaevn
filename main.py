@@ -3,7 +3,6 @@ os.system("pip install python-dateutil")
 
 from flask import Flask, request, jsonify
 from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
 import requests
 
 app = Flask(__name__)
@@ -16,17 +15,9 @@ CURRENCY_IDS = {
     "CNY": 462
 }
 
-# Определение високосных лет
+# Определение високосного года
 def is_leap_year(year):
     return (year % 4 == 0 and year % 100 != 0) or (year % 400 == 0)
-
-# Получаем список високосных годов в диапазоне
-def get_leap_years(start, end):
-    leap_years = []
-    for year in range(start.year, end.year + 1):
-        if is_leap_year(year):
-            leap_years.append(year)
-    return leap_years
 
 @app.route("/rates")
 def rates():
@@ -47,40 +38,45 @@ def rates():
     result_rows = []
 
     for name, cur_id in CURRENCY_IDS.items():
-        # Основной запрос
-        url = f"https://api.nbrb.by/exrates/rates/dynamics/{cur_id}?startDate={start.date()}&endDate={end.date()}"
-        resp = requests.get(url)
-        if resp.ok:
-            try:
-                data = resp.json()
-                for entry in data:
-                    result_rows.append({
-                        "date": entry["Date"][:10],
-                        "currency": name,
-                        "rate": entry["Cur_OfficialRate"]
-                    })
-            except Exception as ex:
-                return jsonify(error=f"Ошибка чтения данных для {name}: {str(ex)}"), 500
-        else:
-            return jsonify(error=f"Ошибка запроса к НБРБ для {name}: статус {resp.status_code}"), 502
+        for year in range(start.year, end.year + 1):
+            year_start = f"{year}-01-01"
+            year_end = f"{year}-12-31"
 
-        # Проверяем високосные годы и добавляем `год-12-31`
-        leap_years = get_leap_years(start, end)
-        for leap_year in leap_years:
-            leap_date = f"{leap_year}-12-31"
-            url = f"https://api.nbrb.by/exrates/rates/{cur_id}?ondate={leap_date}"
+            # Запрашиваем весь год
+            url = f"https://api.nbrb.by/exrates/rates/dynamics/{cur_id}?startDate={year_start}&endDate={year_end}"
             resp = requests.get(url)
             if resp.ok:
                 try:
                     data = resp.json()
-                    result_rows.append({
-                        "date": leap_date,
-                        "currency": name,
-                        "rate": data["Cur_OfficialRate"]
-                    })
+                    for entry in data:
+                        result_rows.append({
+                            "date": entry["Date"][:10],
+                            "currency": name,
+                            "rate": entry["Cur_OfficialRate"]
+                        })
                 except Exception as ex:
-                    return jsonify(error=f"Ошибка чтения данных для {name} ({leap_date}): {str(ex)}"), 500
+                    return jsonify(error=f"Ошибка чтения данных для {name} ({year}): {str(ex)}"), 500
             else:
-                return jsonify(error=f"Ошибка запроса к НБРБ для {name} ({leap_date}): статус {resp.status_code}"), 502
+                return jsonify(error=f"Ошибка запроса к НБРБ для {name} ({year}): статус {resp.status_code}"), 502
+
+            # Если год високосный, запрашиваем отдельно `YYYY-12-31`
+            if is_leap_year(year):
+                leap_date = f"{year}-12-31"
+                url = f"https://api.nbrb.by/exrates/rates/{cur_id}?ondate={leap_date}"
+                resp = requests.get(url)
+                if resp.ok:
+                    try:
+                        data = resp.json()
+                        result_rows.append({
+                            "date": leap_date,
+                            "currency": name,
+                            "rate": data["Cur_OfficialRate"]
+                        })
+                    except Exception as ex:
+                        return jsonify(error=f"Ошибка чтения данных для {name} ({leap_date}): {str(ex)}"), 500
+                else:
+                    return jsonify(error=f"Ошибка запроса к НБРБ для {name} ({leap_date}): статус {resp.status_code}"), 502
 
     return jsonify(result_rows)
+
+
