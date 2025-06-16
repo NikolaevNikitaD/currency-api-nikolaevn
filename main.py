@@ -20,7 +20,7 @@ CURRENCY_IDS = {
 def is_leap_year(year):
     return (year % 4 == 0 and year % 100 != 0) or (year % 400 == 0)
 
-# Разбиение на календарные годы, включая 31 декабря в високосные годы
+# Разбиение на календарные годы
 def split_dates(start, end):
     dates = []
     current = start
@@ -29,11 +29,6 @@ def split_dates(start, end):
         if next_end > end:
             next_end = end
         dates.append((current, next_end))
-
-        # Добавляем 31 декабря отдельно, если год високосный и не включен в диапазон
-        if is_leap_year(current.year) and next_end.month == 12 and next_end.day == 30:
-            dates.append((next_end + timedelta(days=1), next_end + timedelta(days=1)))
-
         current = next_end + timedelta(days=1)
     return dates
 
@@ -72,5 +67,23 @@ def rates():
                     return jsonify(error=f"Ошибка чтения данных для {name}: {str(ex)}"), 500
             else:
                 return jsonify(error=f"Ошибка запроса к НБРБ для {name}: статус {resp.status_code}"), 502
+
+        # Дополнительный запрос для 31 декабря високосных годов
+        if is_leap_year(s.year):
+            leap_date = f"{s.year}-12-31"
+            url = f"https://api.nbrb.by/exrates/rates/{cur_id}?ondate={leap_date}"
+            resp = requests.get(url)
+            if resp.ok:
+                try:
+                    data = resp.json()
+                    result_rows.append({
+                        "date": leap_date,
+                        "currency": name,
+                        "rate": data["Cur_OfficialRate"]
+                    })
+                except Exception as ex:
+                    return jsonify(error=f"Ошибка чтения данных для {name} (31 декабря): {str(ex)}"), 500
+            else:
+                return jsonify(error=f"Ошибка запроса к НБРБ для {name} (31 декабря): статус {resp.status_code}"), 502
 
     return jsonify(result_rows)
