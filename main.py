@@ -69,8 +69,8 @@ def rates():
                 return jsonify(error=f"Ошибка запроса к НБРБ для {name}: статус {resp.status_code}"), 502
 
         # Дополнительный запрос для 31 декабря високосных годов
-        if is_leap_year(s.year):
-            leap_date = f"{s.year}-12-31"
+        if is_leap_year(end.year) and end.year == 2024:
+            leap_date = "2024-12-31"
             url = f"https://api.nbrb.by/exrates/rates/{cur_id}?ondate={leap_date}"
             resp = requests.get(url)
             if resp.ok:
