@@ -7,12 +7,14 @@ import requests
 
 app = Flask(__name__)
 
-# ID валют НБРБ
-CURRENCY_IDS = {
-    "USD": 431,
-    "EUR": 451,
-    "RUB": 456,
-    "CNY": 462
+# Таблица с ID и цифровыми кодами валют
+CURRENCIES = {
+    "USD": {"id": 431, "code": 840},
+    "EUR": {"id": 451, "code": 978},
+    "RUB": {"id": 456, "code": 643},
+    "CNY": {"id": 462, "code": 156},
+    "GBP": {"id": 429, "code": 826},
+    "CHF": {"id": 426, "code": 756}
 }
 
 # Определение високосного года
@@ -40,9 +42,12 @@ def rates():
     result_rows = []
 
     for name in currencies:
-        cur_id = CURRENCY_IDS.get(name.strip())
-        if not cur_id:
+        currency = CURRENCIES.get(name.strip())
+        if not currency:
             return jsonify(error=f"Неизвестная валюта: {name}"), 400
+
+        cur_id = currency["id"]
+        cur_code = currency["code"]
 
         for year in range(start.year, end.year + 1):
             year_start = f"{year}-01-01"
@@ -58,6 +63,7 @@ def rates():
                         result_rows.append({
                             "date": entry["Date"][:10],
                             "currency": name,
+                            "code": cur_code,
                             "rate": entry["Cur_OfficialRate"]
                         })
                 except Exception as ex:
@@ -76,6 +82,7 @@ def rates():
                         result_rows.append({
                             "date": leap_date,
                             "currency": name,
+                            "code": cur_code,
                             "rate": data["Cur_OfficialRate"]
                         })
                     except Exception as ex:
